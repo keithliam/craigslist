@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html ng-app="myApp">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0" />
+		<title>Craigslist</title>
+		<link href="css/material-icons.css" rel="stylesheet" />
+		<link href="css/materialize.min.css" type="text/css" rel="stylesheet" media="screen,projection" />
+		<link href="css/style.css" type="text/css" rel="stylesheet" media="screen,projection" />
+		<script src="js/jquery-3.2.1.min.js"></script>
+		<script src="js/materialize.min.js"></script>
+		<script src="js/angular.min.js"></script>
+		<script src="js/angular-cookies.min.js"></script>
+		<script src="js/init.js"></script>
+		<script>
+			var myApp = angular.module('myApp', ['ngCookies'])
+
+			myApp.controller('thisController', ['$scope', '$http','$window', '$timeout', '$cookies', '$sce', function($scope, $http, $window, $timeout, $cookies, $sce){
+				angular.element(document).ready(function(){
+					$scope.Tags = []
+					if($cookies.get('email')){
+						$window.location.href = 'http://localhost:3000/home'
+					}
+					$scope.weather()
+					$scope.loadingScreen = false
+					// $scope.accountType = 0
+				})
+				$scope.weather = function(){
+					$http
+						.get('https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22manila%2C%20ph%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys')
+						.then(function(res){
+							$scope.temp = (parseInt((parseInt(res.data.query.results.channel.item.condition.temp) - 32) * 5 / 9)).toString() + " °C"
+							console.log(res.data.query.results.channel)
+							$scope.weatherCond = res.data.query.results.channel.item.condition.text
+							$scope.weatherForecast = $sce.trustAsHtml(res.data.query.results.channel.item.description.match(/<img src=\".*\"\/>/)[0])
+							$scope.weatherLink = $sce.trustAsHtml(res.data.query.results.channel.item.description.match(/<a.*<\/a>/)[0].replace("http://us.rd.yahoo.com/dailynews/rss/weather/Country__Country/*", ""))
+						})
+				}
+				$scope.errorText = ''
+				$scope.openModal = function(){
+					$('#loginModal').modal('open')
+					$timeout(function(){
+						$('#textInput1').focus()
+					}, 400)
+				}
+				$scope.closeModal = function(){
+					$('#loginModal').modal('close')
+					$scope.loginEmail = ''
+					$scope.loginPassword = ''
+					$scope.inputColor1 = ''
+					$scope.inputColor2 = ''
+					$scope.errorText = ''
+				}
+				$scope.login = function(){
+					if($scope.loginEmail == null || $scope.loginEmail == ''){
+						$scope.inputColor1 = 'invalid'
+					} else {
+						$scope.inputColor1 = 'valid'
+					}
+					if($scope.loginPassword == null || $scope.loginPassword == ''){
+						$scope.inputColor2 = 'invalid'
+					} else {
+						$scope.inputColor2 = 'valid'
+					}
+					if($scope.loginEmail == null || $scope.loginEmail == ''){
+						$timeout(function(){
+								$('#textInput1').focus()
+						}, 400)
+					} else if($scope.loginPassword == null || $scope.loginPassword == ''){
+						$timeout(function(){
+								$('#textInput2').focus()
+						}, 400)
+					}
+					if(($scope.loginEmail == null || $scope.loginEmail == '') && ($scope.loginPassword == null || $scope.loginPassword == '')){
+						$scope.errorText = 'Please complete both fields'
+					} else {
+						if($scope.loginEmail == null || $scope.loginEmail == ''){
+							$scope.errorText = 'Please enter your email address'
+						} else if($scope.loginPassword == null || $scope.loginPassword == ''){
+							$scope.errorText = 'Please enter your password'
+						} else {
+							$scope.errorText = ''
+							$http
+								.post('http://localhost:3000/api/auth', {
+									email: $scope.loginEmail,
+									pass: $scope.loginPassword
+								})
+								.then(function(res){
+									if(res.data.error){
+										$scope.errorText = 'Error'
+									} else if(!res.data.existing){
+										$scope.inputColor1 = 'invalid'
+										$scope.inputColor2 = 'invalid'
+										$scope.loginPassword = ''
+										$scope.errorText = 'User not found'
+										$timeout(function(){
+												$('#textInput1').focus()
+										}, 400)
+									} else if(res.data.incorrect){
+										$scope.inputColor2 = 'invalid'
+										$scope.loginPassword = ''
+										$scope.errorText = 'Incorrect Password'
+										$timeout(function(){
+												$('#textInput2').focus()
+										}, 400)
+									} else {
+										$('#loginModal').modal('close')
+										$(".button-collapse").sideNav('hide')
+										$scope.loadingScreen = true
+										$timeout(function(){
+											$window.location.href = 'http://localhost:3000/home'
+										}, 2000)
+									}
+								});
+						}
+					}
+				}
+				$scope.signup = function(){
+					if($scope.signEmail == null || $scope.signEmail == ''){
+						$scope.inputColor3 = 'invalid'
+					} else {
+						$scope.inputColor3 = 'valid'
+					}
+					if($scope.signPassword == null || $scope.signPassword == ''){
+						$scope.inputColor4 = 'invalid'
+					} else {
+						$scope.inputColor4 = 'valid'
+					}
+					if($scope.signEmail == null || $scope.signEmail == ''){
+						$timeout(function(){
+								$('#textSignEmail').focus()
+						}, 400)
+					} else if($scope.signPassword == null || $scope.signPassword == ''){
+						$timeout(function(){
+								$('#textSignPass').focus()
+						}, 400)
+					}
+					if($scope.accountType != 1 && $scope.accountType != 2){
+						console.log($scope.accountType)
+						$scope.errorText1 = 'Please choose an account type.'
+					} else {
+						if(($scope.signEmail == null || $scope.signEmail == '') && ($scope.signPassword == null || $scope.signPassword == '')){
+							$scope.errorText1 = 'Please complete both fields'
+						} else {
+							if($scope.signEmail == null || $scope.signEmail == ''){
+								$scope.errorText1 = 'Please enter your email address'
+							} else if($scope.signPassword == null || $scope.signPassword == ''){
+								$scope.errorText1 = 'Please enter your password'
+							} else {
+								$scope.errorText1 = ''
+								$http
+									.post('http://localhost:3000/api/signup', {
+										name 	: $scope.signName,
+										email 	: $scope.signEmail,
+										pass 	: $scope.signPassword,
+										type 	: $scope.accountType  
+									})
+									.then(function(res){
+										if(res.data.error){
+											$scope.errorText1 = 'Error'
+										} else if(res.data.existing){
+											$scope.inputColor3 = 'invalid'
+											$scope.inputColor4 = 'invalid'
+											$scope.signPassword = ''
+											$scope.errorText1 = 'User already exists'
+											$timeout(function(){
+												$('#textSignEmail').focus()
+											}, 400)
+										} else {
+											$timeout(function(){
+												$scope.signName = ''
+												$scope.signEmail = ''
+												$scope.signPassword = ''
+												$scope.inputColor3 = ''
+												$scope.inputColor4 = ''
+												$('#textSignName').focus()
+												Materialize.toast('Successfully created account')
+											}, 400)
+										}
+									});
+							}
+						}
+					}
+				}
+			}])
+		</script>
+	</head>
+	<body ng-app ng-controller="thisController">
+		<ul id="nav-mobile" class="side-nav">
+			<li><a class="modal-trigger waves-effect waves-block waves-light" ng-click="openModal()"><i class="material-icons left">account_circle</i>Log in</a></li>
+		</ul>
+		<div class="navbar-fixed">
+			<nav class="purple">
+				<div class="nav-wrapper container">
+					<a href="#" data-activates="nav-mobile" class="button-collapse"><i class="material-icons">menu</i></a>
+					<a id="logo-container" href="http://localhost:3000/" class="brand-logo">Craigslist</a>
+				<ul class="right hide-on-med-and-down">
+					<li><a class="modal-trigger waves-effect waves-block waves-light" ng-click="openModal()"><i class="material-icons left">account_circle</i>Log in</a></li>
+				</ul>
+				</div>
+			</nav>
+		</div>
+		<div class="center" ng-show="loadingScreen">
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<div class="preloader-wrapper big active">
+				<div class="spinner-layer spinner-blue">
+					<div class="circle-clipper left">
+						<div class="circle"></div>
+					</div>
+					<div class="gap-patch">
+						<div class="circle"></div>
+					</div>
+					<div class="circle-clipper right">
+						<div class="circle"></div>
+					</div>
+				</div>
+				<div class="spinner-layer spinner-red">
+					<div class="circle-clipper left">
+						<div class="circle"></div>
+					</div>
+					<div class="gap-patch">
+						<div class="circle"></div>
+					</div>
+					<div class="circle-clipper right">
+						<div class="circle"></div>
+					</div>
+				</div>
+				<div class="spinner-layer spinner-yellow">
+					<div class="circle-clipper left">
+						<div class="circle"></div>
+					</div>
+					<div class="gap-patch">
+						<div class="circle"></div>
+					</div>
+					<div class="circle-clipper right">
+						<div class="circle"></div>
+					</div>
+				</div>
+				<div class="spinner-layer spinner-green">
+					<div class="circle-clipper left">
+						<div class="circle"></div>
+					</div>
+					<div class="gap-patch">
+						<div class="circle"></div>
+					</div>
+					<div class="circle-clipper right">
+						<div class="circle"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div ng-show="!loadingScreen">
+			<br />
+			<br />
+			<div class="row">
+				<div class="col s10 l4 offset-s1 offset-l4">
+					<div class="card">
+						<div class="card-content">
+							<div id="double-align" class="card-title">
+								<span id="weather-left">{{ temp }}</span>
+								<span id="weather-right">Manila, PH</span>
+							</div>
+							<br />
+							<br />
+							<div class="vertCenterify">
+								<div id="weather-image" ng-bind-html="weatherForecast"></div>
+								<div id="weatherTitle">{{ weatherCond }}</div>
+							</div>
+							<br />
+							<br />
+							<div id="link" ng-bind-html="weatherLink"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+
+			<div class="row">
+	        	<div class="col s10 l4 offset-s1 offset-l4">
+					<div class="card">
+						<div class="card-content">
+							<br>
+							<span class="center card-title">Sign Up</span>
+							<br>
+							<div class="row">
+								<div class="input-field col s10 offset-s1">
+									<select ng-model="accountType">
+										<option value="1">Job Seeker</option>
+										<option value="2">Company User</option>
+									</select>
+									<label>Account Type</label>
+								</div>
+							</div>
+							<div class="row">
+								<div class="input-field col s10 offset-s1">
+									<input id="textSignName" type="text" ng-keyup="$event.keyCode == 13 && signup()"  ng-model="signName">
+									<label for="textSignName">Name {{ accountType == 2? "of Company" : "" }}</label>
+								</div>
+							</div>
+							<div class="row">
+								<div class="input-field col s10 offset-s1">
+									<input id="textSignEmail" type="text" ng-keyup="$event.keyCode == 13 && signup()"  ng-model="signEmail" class="{{ inputColor3 }}">
+									<label for="textSignEmail">Email Address</label>
+								</div>
+							</div>
+							<div class="row">
+								<div class="input-field col s10 offset-s1">
+									<input id="textSignPass" type="password" ng-keyup="$event.keyCode == 13 && signup()"  ng-model="signPassword" class="{{ inputColor4 }}">
+									<label for="textSignPass">Password</label>
+								</div>
+							</div>
+							<div class="row">
+								<div class="col s10 offset-s1">
+									<span class="left red-text">{{ errorText1 }}</span>
+								</div>
+							</div>
+							<div class="row center">
+								<a class="purple waves-effect waves-light btn" ng-click="signup()"><i class="material-icons left">send</i>Submit</a>
+							</div>
+						</div>
+					</div>
+	        	</div>
+	      	</div>
+
+	      	<div id="loginModal" class="modal modal-fixed-footer">
+				<div class="modal-content">
+					<div class="container col s10 offset-s1 center">
+						<br>
+						<br>
+						<h4>Log In</h4>
+						<br>
+						<div class="row">
+							<div class="input-field col s12">
+								<input id="textInput1" type="text" ng-keyup="$event.keyCode == 13 && login()" ng-model="loginEmail" class="{{ inputColor1 }}">
+								<label for="textInput1">Email Address</label>
+							</div>
+							<div class="input-field col s12">
+								<input id="textInput2" type="password" ng-keyup="$event.keyCode == 13 && login()" ng-model="loginPassword" class="{{ inputColor2 }}">
+								<label for="textInput2">Password</label>
+							</div>
+							<div class="col s12">
+								<span class="left red-text">{{ errorText }}</span>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<a href="#" class="modal-action waves-effect waves-purple btn-flat" ng-click="login()">Submit</a>
+					<a class="modal-action waves-effect waves-red btn-flat" ng-click="closeModal()">Cancel</a>
+				</div>
+			</div>
+		</div>
+	</body>
+</head>

@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html ng-app="myApp">
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0" />
+		<title>Craigslist</title>
+		<link href="css/material-icons.css" rel="stylesheet" />
+		<link href="css/materialize.min.css" type="text/css" rel="stylesheet" media="screen,projection" />
+		<link href="css/style.css" type="text/css" rel="stylesheet" media="screen,projection" />
+		<script src="js/jquery-3.2.1.min.js"></script>
+		<script src="js/materialize.min.js"></script>
+		<script src="js/angular.min.js"></script>
+		<script src="js/angular-cookies.min.js"></script>
+		<script src="js/init.js"></script>
+		<script>
+			var myApp = angular.module('myApp', ['ngCookies'])
+
+			myApp.controller('thisController', ['$scope', '$http','$window', '$timeout', '$cookies', function($scope, $http, $window, $timeout, $cookies){
+				angular.element(document).ready(function(){
+					$scope.showJobs = false
+					$scope.loadingScreen = true
+					if($cookies.get('email')){
+						$scope.getInfo()
+						$scope.accountType = $cookies.get('accountType')
+					} else {
+						$window.location.href = 'http://localhost:3000/'
+					}
+					$scope.isApproved = $cookies.get('isApproved')
+					
+					$timeout(function(){
+						if($cookies.get('accountType') == 2 && $cookies.get('isApproved') == 0){
+							Materialize.toast('Your profile will be hidden since it is not yet approved')
+							$scope.errorText = 'Your profile will be hidden since it is not yet approved'
+							$scope.$apply()
+						}
+					}, 2000)
+				})
+				$scope.loadProfiles = function(isApproved){
+					$http
+						.post('http://localhost:3000/api/get-cprofiles', {
+							isapproved 	: isApproved
+						})
+						.then(function(res){
+							// console.log(res.data)
+							if(res.data.error != 1){
+								// console.log("res.data.profiles")
+								// console.log(res.data.profiles)
+								$scope.Profiles = res.data.profiles
+								// console.log($scope.Profiles)
+							} else {
+								$scope.Profiles = []
+							}
+						})
+				}
+				$scope.acceptProfile = function(id){
+					$http
+						.post('http://localhost:3000/api/accept-cprofile', {
+							cprofileid 	: id
+						})
+						.then(function(res){
+							if(res.data.error != 1){
+								Materialize.toast('Profile accepted')
+								var ctr
+								for(ctr = 0; ctr < $scope.Profiles.length; ctr++){
+									if($scope.Profiles[ctr].cprofileid == id){
+										$scope.Profiles.splice(ctr, 1)
+										break
+									}
+								}
+							} else {
+								Materialize.toast('There is an error in accepting the profile')
+							}
+						})
+				}
+				$scope.loadJobs = function(){
+					$http
+						.post('http://localhost:3000/api/get-jobs', {
+							email 	: $cookies.get('email')
+						})
+						.then(function(res){
+							// console.log(res.data)
+							if(res.data.error != 1){
+								// console.log("res.data.profiles")
+								// console.log(res.data.profiles)
+								$scope.Jobs = res.data.jobs
+								// console.log($scope.Profiles)
+							} else {
+								$scope.Jobs = []
+							}
+						})
+				}
+				$scope.loadAllJobs = function(){
+					$http
+						.get('http://localhost:3000/api/get-all-jobs')
+						.then(function(res){
+							// console.log(res.data)
+							if(res.data.error != 1){
+								// console.log("res.data.profiles")
+								// console.log(res.data.profiles)
+								$scope.Jobs = res.data.jobs
+								// console.log($scope.Profiles)
+							} else {
+								$scope.Jobs = []
+							}
+						})
+				}
+				$scope.getInfo = function(){
+					$http
+						.post('http://localhost:3000/api/get-info', {
+							email		: $cookies.get('email'),
+							accountType	: $cookies.get('accountType')
+						})
+						.then(function(res){
+							$scope.loadingScreen = false
+							if($scope.accountType == 1){
+								if(res.data.error != 1){
+									$scope.showJobs = true
+									$scope.Name = res.data.name
+									$scope.Address = res.data.address
+									$scope.Contact = res.data.contact
+									$scope.Educs = res.data.educ
+									$scope.Works = res.data.work 
+									$scope.Interests = res.data.interest
+									$scope.loadProfiles(1)
+									// console.log("-------> ")
+									// console.log($scope.Profiles)
+								}
+								$scope.loadAllJobs()
+							} else if($scope.accountType == 2){
+								if($cookies.get('isApproved') == 1){
+									$scope.showJobs = true
+									$scope.Tags = []
+								}
+								if(res.data.error != 1){
+									$scope.Name = res.data.name
+									$scope.Address = res.data.address
+									$scope.Contact = res.data.contact
+								}
+								$scope.loadJobs()
+							} else {
+								if(res.data.error != 1){
+									$scope.Name = 'Handsome admin'
+									$scope.loadProfiles(0)
+								}
+							}
+						})
+				}
+				$scope.addEduc = function(){
+					if($scope.educInput){
+						$scope.Educs.push({ educbackground: $scope.educInput })
+						$scope.educInput = ''
+					}
+				}
+				$scope.deleteEduc = function(educ){
+					var ctr
+					for(ctr = 0; ctr < $scope.Educs.length; ctr++){
+						if($scope.Educs[ctr].educbackground == educ){
+							$scope.Educs.splice(ctr, 1)
+							break
+						}
+					}
+				}
+				$scope.addWork = function(){
+					if($scope.workInput){
+						$scope.Works.push({ workbackground: $scope.workInput })
+						$scope.workInput = ''
+					}
+				}
+				$scope.deleteWork = function(work){
+					var ctr
+					for(ctr = 0; ctr < $scope.Works.length; ctr++){
+						if($scope.Works[ctr].workbackground == work){
+							$scope.Works.splice(ctr, 1)
+							break
+						}
+					}
+				}
+				$scope.addInterest = function(){
+					if($scope.interestInput){
+						$scope.Interests.push({ interest: $scope.interestInput })
+						$scope.interestInput = ''
+					}
+				}
+				$scope.deleteInterest = function(interest){
+					var ctr
+					for(ctr = 0; ctr < $scope.Interests.length; ctr++){
+						if($scope.Interests[ctr].interest == interest){
+							$scope.Interests.splice(ctr, 1)
+							break
+						}
+					}
+				}
+				$scope.addTag = function(){
+					if($scope.tagInput){
+						$scope.Tags.push({ tagname: $scope.tagInput })
+						$scope.tagInput = ''
+					}
+				}
+				$scope.deleteTag = function(tag){
+					var ctr
+					for(ctr = 0; ctr < $scope.Interests.length; ctr++){
+						if($scope.Tags[ctr].tagname == tag){
+							$scope.Tags.splice(ctr, 1)
+							break
+						}
+					}
+				}
+				$scope.logout = function(){
+					$cookies.remove('email')
+					$cookies.remove('accountType')
+					$cookies.remove('isApproved')
+					$('.button-collapse').sideNav('hide')
+					$scope.loadingScreen = true
+					$timeout(function(){
+						$window.location.href = 'http://localhost:3000/'
+					}, 2000)
+				}
+				$scope.submitProfile = function(){
+					if($scope.accountType == 1){
+						console.log($scope.Name)
+						$http
+							.post('http://localhost:3000/api/edit-js', {
+								email		: $cookies.get('email'),
+								name 		: $scope.Name,
+								address 	: $scope.Address,
+								contact 	: $scope.Contact,
+								educ 		: $scope.Educs,
+								work 		: $scope.Works,
+								interest 	: $scope.Interests
+							})
+							.then(function(res){
+								Materialize.toast(res.data.message, 4000)
+								$scope.getInfo()
+							})
+					} else {
+						$http
+							.post('http://localhost:3000/api/edit-company', {
+								email 		: $cookies.get('email'),
+								name 		: $scope.Name,
+								address 	: $scope.Address,
+								contact 	: $scope.Contact
+							})
+							.then(function(res){
+								Materialize.toast(res.data.message, 4000)
+								$scope.getInfo()
+							})
+					}
+				}
+				$scope.submitJob = function(){
+					if($scope.Position == null || $scope.Position == '' || $scope.Description == null || $scope.Description == '' || $scope.Salary == null || $scope.Salary == ''){
+						$timeout(function(){
+							if($scope.Position == null || $scope.Position == ''){
+								$scope.positionColor = 'invalid'
+							} else {
+								$scope.positionColor = 'valid'
+							}
+							if($scope.Description == null || $scope.Description == ''){
+								$scope.descriptionColor = 'invalid'
+							}  else {
+								$scope.descriptionColor = 'valid'
+							}
+							if($scope.Salary == null || $scope.Salary == ''){
+								$scope.salaryColor = 'invalid'
+							} else {
+								$scope.salaryColor = 'valid'
+							}
+							if($scope.Position == null || $scope.Position == ''){
+								$('#inputPosition').focus()
+							} else if($scope.Description == null || $scope.Description == ''){
+								$('#inputDescription').focus()
+							} else {
+								$('#inputSalary').focus()
+							}
+							$scope.errorText1 = 'All fields are required'
+						}, 400)
+					} else {
+						if(!isNaN($scope.Salary)){
+							if(parseFloat($scope.Salary) % 1 == 0){
+								$http
+									.post('http://localhost:3000/api/add-job', {
+										email 		: $cookies.get('email'),
+										position 	: $scope.Position,
+										description : $scope.Description,
+										salary 		: $scope.Salary,
+										tags 		: $scope.Tags
+									})
+									.then(function(res){
+										Materialize.toast(res.data.message, 4000)
+										$scope.Position = ''
+										$scope.Description = ''
+										$scope.Salary = ''
+										$scope.positionColor = ''
+										$scope.descriptionColor = ''
+										$scope.salaryColor = ''
+										$scope.errorText1 = ''
+										$scope.Tags = []
+									})
+							} else {
+								$scope.errorText1 = 'Please enter a whole number'
+								$timeout(function(){
+									$scope.salaryColor = 'invalid'
+									$scope.Salary = ''
+									$('#inputSalary').focus()
+								}, 400)
+							}
+						} else {
+							$scope.errorText1 = 'Please enter a valid number'
+							$timeout(function(){
+								$scope.salaryColor = 'invalid'
+								$scope.Salary = ''
+								$('#inputSalary').focus()
+							}, 400)
+						}
+					}
+				}
+				$scope.applyJob = function(id){
+					$http
+						.post('http://localhost:3000/api/apply-job', {
+							email 	: $cookies.get('email'),
+							jobid 	: id
+						})
+						.then(function(res){
+							Materialize.toast(res.data.message, 4000)
+						})
+				}
+				// $scope.Jobs = [{position: 'Company Photographer', description: 'We need a photographer to capture our company\'s projects and activities', salary: 400, name: 'The Boring Company'}]
+				// $scope.Profiles = [{name:'The Boring Company', address:'Bonifacio Global City', contactno:'32523', datecreated: '214241', isapproved: 1}]
+				$scope.errorText = ''
+			}])
+		</script>
+	</head>
+	<body ng-app ng-controller="thisController">
+		<ul id="nav-mobile" class="side-nav">
+			<li><a href="#" ng-click="logout()"><i class="material-icons left">call_made</i>Log out</a></li>
+		</ul>
+		<div class="navbar-fixed">
+			<nav class="purple">
+				<div class="nav-wrapper container">
+					<a href="#" data-activates="nav-mobile" class="button-collapse"><i class="material-icons">menu</i></a>
+					<a id="logo-container" href="http://localhost:3000/" class="brand-logo">Craigslist</a>
+					<ul class="right hide-on-med-and-down">
+						<li><a href="#" ng-click="logout()"><i class="material-icons left">call_made</i>Log out</a></li>
+					</ul>
+				</div>
+			</nav>
+		</div>
+		<div class="center" ng-show="loadingScreen">
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<br/>
+			<div class="preloader-wrapper big active">
+				<div class="spinner-layer spinner-blue">
+					<div class="circle-clipper left">
+						<div class="circle"></div>
+					</div>
+					<div class="gap-patch">
+						<div class="circle"></div>
+					</div>
+					<div class="circle-clipper right">
+						<div class="circle"></div>
+					</div>
+				</div>
+				<div class="spinner-layer spinner-red">
+					<div class="circle-clipper left">
+						<div class="circle"></div>
+					</div>
+					<div class="gap-patch">
+						<div class="circle"></div>
+					</div>
+					<div class="circle-clipper right">
+						<div class="circle"></div>
+					</div>
+				</div>
+				<div class="spinner-layer spinner-yellow">
+					<div class="circle-clipper left">
+						<div class="circle"></div>
+					</div>
+					<div class="gap-patch">
+						<div class="circle"></div>
+					</div>
+					<div class="circle-clipper right">
+						<div class="circle"></div>
+					</div>
+				</div>
+				<div class="spinner-layer spinner-green">
+					<div class="circle-clipper left">
+						<div class="circle"></div>
+					</div>
+					<div class="gap-patch">
+						<div class="circle"></div>
+					</div>
+					<div class="circle-clipper right">
+						<div class="circle"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<div ng-show="!loadingScreen">
+			<div class="welcome-text center">Welcome, {{Name}}.</div>
+
+			<div class="row" ng-show="accountType != 3">
+	        	<div class="col s10 l6 offset-s1 offset-l3">
+					<div class="card">
+						<div class="card-content">
+							<br>
+							<span class="center card-title">Your Profile Info</span>
+							<br>
+							<div class="row">
+								<div class="input-field col s10 offset-s1">
+									<input placeholder="" id="inputName" type="text" class="validate" ng-keyup="$event.keyCode == 13 && submitProfile()"  ng-model="Name">
+									<label for="inputName">Name</label>
+								</div>
+							</div>
+							<div class="row">
+								<div class="input-field col s10 offset-s1">
+									<input placeholder="" id="inputAddress" type="text" class="validate" ng-keyup="$event.keyCode == 13 && submitProfile()"  ng-model="Address">
+									<label for="inputAddress">Address</label>
+								</div>
+							</div>
+							<div class="row">
+								<div class="input-field col s10 offset-s1">
+									<input placeholder="" id="inputContact" type="text"  class="validate" ng-keyup="$event.keyCode == 13 && submitProfile()"  ng-model="Contact">
+									<label for="inputContact">Contact Number</label>
+								</div>
+							</div>
+							<div class="row marginify1" ng-show="accountType == 1">
+								<div class="input-field inline col s10 m7 l7 offset-s1 offset-m1 offset-l1">
+									<i class="material-icons prefix">add</i>
+									<input id="icon_prefix1" type="text" ng-keyup="$event.keyCode == 13 && addEduc()" ng-model="educInput">
+									<label for="icon_prefix1">Educational Background</label>
+								</div>
+								<div class="addButton file-field input-field col s10 m4 l4 offset-s1">
+									<a class="purple waves-effect waves-light btn" ng-click="addEduc()">Add</a>
+								</div>
+							</div>
+							<div class="row marginify1" ng-show="accountType == 1">
+								<div class="input-field inline col s10 m7 l7 offset-s1 offset-m1 offset-l1">
+									<i class="material-icons prefix">add</i>
+									<input id="icon_prefix2" type="text" ng-keyup="$event.keyCode == 13 && addWork()" ng-model="workInput">
+									<label for="icon_prefix2">Work Background</label>
+								</div>
+								<div class="addButton file-field input-field col s10 m4 l4 offset-s1">
+									<a class="purple waves-effect waves-light btn" ng-click="addWork()">Add</a>
+								</div>
+							</div>
+							<div class="row marginify1" ng-show="accountType == 1">
+								<div class="input-field inline col s10 m7 l7 offset-s1 offset-m1 offset-l1">
+									<i class="material-icons prefix">add</i>
+									<input id="icon_prefix3" type="text" ng-keyup="$event.keyCode == 13 && addInterest()" ng-model="interestInput">
+									<label for="icon_prefix3">Interest Name</label>
+								</div>
+								<div class="addButton file-field input-field col s10 m4 l4 offset-s1">
+									<a class="purple waves-effect waves-light btn" ng-click="addInterest()">Add</a>
+								</div>
+							</div>
+							<br/>
+							<div class="row center marginify2" ng-show="accountType == 1">
+								<span class="center">Your Educational Background</span>
+								<div class="row center">
+									<div ng-show="Educs.length == 0" class="chip">
+										You have no educational background
+									</div>
+									<div class="chip" ng-repeat="educ in Educs" ng-click="deleteEduc(educ.educbackground)">
+										{{ educ.educbackground }}
+										<i href="#" class="close material-icons">close</i>
+									</div>
+								</div>
+							</div>
+							<div class="row center marginify2" ng-show="accountType == 1">
+								<span class="center">Your Work Background</span>
+								<div class="row center">
+									<div ng-show="Works.length == 0" class="chip">
+										You have no work background
+									</div>
+									<div class="chip" ng-repeat="work in Works" ng-click="deleteWork(work.workbackground)">
+										{{ work.workbackground }}
+										<i href="#" class="close material-icons">close</i>
+									</div>
+								</div>
+							</div>
+							<div class="row center marginify2" ng-show="accountType == 1">
+								<span class="center">Your Interests</span>
+								<div class="row center">
+									<div ng-show="Interests.length == 0" class="chip">
+										You have no interests
+									</div>
+									<div class="chip" ng-repeat="interest in Interests" ng-click="deleteInterest(interest.interest)">
+										{{ interest.interest }}
+										<i href="#" class="close material-icons">close</i>
+									</div>
+								</div>
+							</div>
+							<br ng-show="accountType == 1" />
+							<div class="row">
+								<div class="col s10 offset-s1">
+									<span class="left red-text">{{ errorText }}</span>
+								</div>
+							</div>
+							<div class="row center">
+								<a class="purple waves-effect waves-light btn" ng-click="submitProfile()"><i class="material-icons left">send</i>Submit</a>
+							</div>
+						</div>
+					</div>
+	        	</div>
+
+		      	<div class="row" ng-show="showJobs">
+		        	<div class="col s10 l6 offset-s1 offset-l3">
+						<div class="card">
+							<div class="card-content">
+								<br>
+								<span class="center card-title">Post a Job</span>
+								<br>
+								<div class="row">
+									<div class="input-field col s10 offset-s1">
+										<input id="inputPosition" type="text" class="{{ positionColor }}" ng-keyup="$event.keyCode == 13 && submitJob()"  ng-model="Position">
+										<label for="inputPosition">Position</label>
+									</div>
+								</div>
+								<div class="row">
+									<div class="input-field col s10 offset-s1">
+										<input id="inputDescription" type="text" class="{{ descriptionColor }}" ng-keyup="$event.keyCode == 13 && submitJob()"  ng-model="Description">
+										<label for="inputDescription">Description</label>
+									</div>
+								</div>
+								<div class="row">
+									<div class="input-field col s10 offset-s1">
+										<input id="inputSalary" type="text" class="{{ salaryColor }}" ng-keyup="$event.keyCode == 13 && submitJob()"  ng-model="Salary">
+										<label for="inputSalary">Salary</label>
+									</div>
+								</div>
+								<br/>
+								<div class="row marginify1">
+									<div class="input-field inline col s10 m7 l7 offset-s1 offset-m1 offset-l1">
+										<i class="material-icons prefix">add</i>
+										<input id="icon_prefix4" type="text" ng-keyup="$event.keyCode == 13 && addTag()" ng-model="tagInput">
+										<label for="icon_prefix4">Search Tag</label>
+									</div>
+									<div class="addButton file-field col s10 m4 l4 offset-s1">
+										<a class="purple waves-effect waves-light btn" ng-click="addTag()">Add</a>
+									</div>
+								</div>
+								<div class="row center marginify2">
+									<span class="center">Search Tags</span>
+									<div class="row center">
+										<div ng-show="Tags.length == 0" class="chip">
+											The job has no search tags
+										</div>
+										<div class="chip" ng-repeat="tag in Tags" ng-click="deleteTag(tag.tagname)">
+											{{ tag.tagname }}
+											<i href="#" class="close material-icons">close</i>
+										</div>
+									</div>
+								</div>
+								<br />
+								<div class="row">
+									<div class="col s10 offset-s1">
+										<span class="left red-text">{{ errorText1 }}</span>
+									</div>
+								</div>
+								<div class="row center">
+									<a class="purple waves-effect waves-light btn" ng-click="submitJob()"><i class="material-icons left">send</i>Submit</a>
+								</div>
+							</div>
+						</div>
+		        	</div>
+		      	</div>
+		      	<!-- <div  -->
+		      	<div ng-show="showJobs">
+			      	<br/>
+			      	<br/>
+			      	<div class="row">
+			      		<h4 class="center">{{ accountType == 1? 'Jobs' : 'Your Job Posts' }}</h4>
+			      	</div>
+			      	<br/>
+			      	<div class="row">
+			      		<div class="col s10 l6 offset-s1 offset-l3" ng-show="Jobs.length == 0">
+							<div class="card purple lighten-3 white-text">
+								<div class="card-content">
+									<br>
+									<br>
+									<br>
+									<br>
+									<span class="center card-title">{{ accountType == 1? 'There are no jobs posted' : 'You haven\'t posted any jobs' }}</span>
+									<br>
+									<br>
+									<br>
+									<br>
+								</div>
+							</div>
+			        	</div>
+			        	<div class="col s10 l6 offset-s1 offset-l3" ng-repeat="job in Jobs">
+							<div class="card purple lighten-3 white-text">
+								<div class="card-content">
+									<br>
+									<span class="center card-title">{{ job.position }}</span>
+									<br>
+									<div class="row">
+										<br>
+										<p class="light col s10 offset-s1"><i class="material-icons left">description</i>{{ job.description }}</p>
+									</div>
+									<div class="row">
+										<br>
+										<p class="light col s10 offset-s1"><i class="material-icons left">payment</i>${{ job.salary }}</p>
+									</div>
+									<!-- <div class="row center marginify2">
+										<div class="row center">
+											<div class="chip" ng-repeat="tag in job.tags">
+												{{ tag.searchtag }}
+											</div>
+										</div>
+									</div> -->
+									<div class="row">
+										<br>
+										<div class="light center">Posted by <a class="card-link purple-text text-darken-3" href="#">{{ job.name }}</a></div>
+									</div>
+								</div>
+
+								<div ng-show="accountType == 1" class="card-action">
+									<a href="#" class="acc-rej-btn purple-text text-darken-3" ng-click="applyJob(job.jobid)">Apply</a>
+								</div>
+							</div>
+			        	</div>
+			        </div>
+			    </div>
+			</div>
+
+			<div class="container" ng-show="accountType != 2">
+				<br/>
+	      		<h5 class="center">{{ accountType == 3? "Company Profile Submissions" : "Company Profiles" }}</h5>
+				<br/>
+				<div class="row" ng-show="Profiles.length == 0">
+			      	<div class="col s10 l6 offset-s1 offset-l3">
+						<div class="card purple lighten-3 white-text">
+							<div class="card-content">
+								<br/>
+								<br/>
+								<span class="center card-title">There are currently no {{ accountType == 3? "profile submissions": "company profiles" }}</span>
+								<br/>
+							</div>
+			        	</div>
+			        </div>
+			    </div>
+			    <div class="row">
+			      	<div ng-repeat="profile in Profiles">
+			      		<div>
+					      	<div class="col s10 l6 offset-s1 {{ Profiles.length == 1? 'offset-l3' : 'offset-l0' }}">
+								<div class="card purple lighten-3 white-text">
+									<div class="card-content">
+										<br/>
+										<span class="center card-title">{{ profile.name }}</span>
+										<br/>
+										<div class="row">
+											<p class="light col s10 offset-s1"><i class="material-icons left">location_on</i>{{ profile.address }}</p>
+										</div>
+										<div class="row">
+											<p class="light col s10 offset-s1"><i class="material-icons left">phone</i>{{ profile.contactno }}</p>
+										</div>
+										<div class="row">
+											<p class="light col s10 offset-s1"><i class="material-icons left">date_range</i>{{ profile.datecreated.slice(0, 10) }}</p>
+										</div>
+									</div>
+
+									<div ng-show="accountType == 3" class="card-action">
+										<a href="#" class="acc-rej-btn purple-text text-darken-3" ng-click="acceptProfile(profile.cprofileid)">Accept</a>
+									</div>
+								</div>
+				        	</div>
+				        </div>
+			        </div>
+			    </div>
+	      	</div>
+		</div>
+	</body>
+</html>

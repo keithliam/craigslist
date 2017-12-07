@@ -1,0 +1,79 @@
+#loginModal {
+	height: 430px;
+
+	overflow-y: hidden;
+	overflow: hidden;
+}
+
+#double-align {
+	clear: both;
+}
+
+#weather-left {
+	float: left;
+}
+
+#weather-right {
+	float: right;
+}
+
+.vertCenterify {
+	display: inline-block;
+	width: 100%;
+	text-align: center;
+}
+
+#weather-image {
+	display: inline-block;
+	vertical-align: middle;
+	height: 100%;
+	width: 20%;
+	text-align: right;
+}
+
+#weather-image > img {
+	display: inline-block;
+	text-align: center;
+	margin: auto;
+	vertical-align: middle;
+}
+
+#weatherTitle {
+	vertical-align: middle;
+	width: 78%;
+	height: 100%;
+	font-size: 30px;
+	text-align: center;
+	display: inline-block;
+	line-height: 35px;
+}
+
+#link {
+	text-align: center;
+}
+
+.welcome-text {
+	font-family: Roboto;
+	padding: 30px;
+	font-size: 50px;
+	font-weight: lighter;
+}
+
+.marginify1 {
+	margin-top: -20px;
+	margin-bottom: 0px;
+}
+
+.marginify2 {
+	margin-top: 0px;
+	margin-bottom: -10px;
+}
+
+.acc-rej-btn {
+	transition: .2s ease-in-out !important;
+}
+
+.acc-rej-btn:hover {
+	transition: .2s ease-in-out !important;
+	opacity: 0.5;
+}
