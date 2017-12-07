@@ -9,6 +9,7 @@ $(document).ready(function(){
     $('#loginModal').modal({
         endingTop: '20%'
     });
+    $('#viewProfileModal').modal();
     //  $('#successModal').modal({
     //     dismissible: false,
     //     endingTop: '30%'

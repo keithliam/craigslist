@@ -33,38 +33,54 @@ function isExisting(query, callback){
 	}
 }
 
-function getInfo(email, accountType, callback){
-	if(accountType == 1){
-		var table = 'js_user_js_profile'
-	} else if(accountType == 2){
-		var table = 'c_user_c_profile'
+function getInfo(id, email, accountType, callback){
+	if(id == false){
+		if(accountType == 1){
+			var table = 'js_user_js_profile'
+		} else if(accountType == 2){
+			var table = 'c_user_c_profile'
+		} else {
+			var table = 'admin'
+		}
+		try {
+			connection.query('SELECT * FROM user x NATURAL JOIN `' + table + '` WHERE email = ?', email, function(err, rows, fields){
+				if(accountType == 3){
+					return callback(0, 0, rows[0], 0, 0, 0)
+				} else if(accountType == 2){
+					connection.query('SELECT * FROM c_profile_info WHERE cprofileid = ? AND isapproved = 1', rows[0].cprofileid, function(err, rows1, fields){
+						if(rows1.length == 0){
+							return callback(0, 0, rows[0], 0, 0, 0)
+						} else {
+							return callback(1, 0, rows[0], 0, 0, 0)
+						}
+					})
+				} else {
+					connection.query('SELECT educbackground FROM js_profile_educbackground WHERE jsprofileid = ?', rows[0].jsprofileid, function(err, rows1, fields){
+						connection.query('SELECT workbackground FROM js_profile_workbackground  WHERE jsprofileid = ?', rows[0].jsprofileid, function(err, rows2, fields){
+							connection.query('SELECT interest FROM js_profile_interest  WHERE jsprofileid = ?', rows[0].jsprofileid, function(err, rows3, fields){
+								return callback(1, 0, rows[0], rows1, rows2, rows3)
+							})
+						})
+					})
+				}
+			})
+		} catch (e){
+			return callback(0, 1, 0, 0, 0, 0)
+		}
 	} else {
-		var table = 'admin'
-	}
-	try {
-		connection.query('SELECT * FROM user x NATURAL JOIN `' + table + '` WHERE email = ?', email, function(err, rows, fields){
-			if(accountType == 3){
-				return callback(0, 0, rows[0], 0, 0, 0)
-			} else if(accountType == 2){
-				connection.query('SELECT * FROM c_profile_info WHERE cprofileid = ? AND isapproved = 1', rows[0].cprofileid, function(err, rows1, fields){
-					if(rows1.length == 0){
-						return callback(0, 0, rows[0], 0, 0, 0)
-					} else {
-						return callback(1, 0, rows[0], 0, 0, 0)
-					}
-				})
-			} else {
-				connection.query('SELECT educbackground FROM js_profile_educbackground WHERE jsprofileid = ?', rows[0].jsprofileid, function(err, rows1, fields){
-					connection.query('SELECT workbackground FROM js_profile_workbackground  WHERE jsprofileid = ?', rows[0].jsprofileid, function(err, rows2, fields){
-						connection.query('SELECT interest FROM js_profile_interest  WHERE jsprofileid = ?', rows[0].jsprofileid, function(err, rows3, fields){
+		try {
+			connection.query('SELECT * FROM js_user_js_profile WHERE jsprofileid = ?', id, function(err, rows, fields){
+				connection.query('SELECT educbackground FROM js_profile_educbackground WHERE jsprofileid = ?', id, function(err, rows1, fields){
+					connection.query('SELECT workbackground FROM js_profile_workbackground  WHERE jsprofileid = ?', id, function(err, rows2, fields){
+						connection.query('SELECT interest FROM js_profile_interest  WHERE jsprofileid = ?', id, function(err, rows3, fields){
 							return callback(1, 0, rows[0], rows1, rows2, rows3)
 						})
 					})
 				})
-			}
-		})
-	} catch (e){
-		return callback(0, 1, 0, 0, 0, 0)
+			})
+		} catch (e){
+			return callback(0, 1, 0, 0, 0, 0)
+		}
 	}
 }
 
@@ -110,7 +126,7 @@ app.post('/api/auth', function(req, res){
 })
 
 app.post('/api/get-info', function(req, res){
-	getInfo(req.body.email, req.body.accountType, function(approved, err, info, educBG, workBG, interests){
+	getInfo(false, req.body.email, req.body.accountType, function(approved, err, info, educBG, workBG, interests){
 		if(err){
 			res.send({
 				error	: 1
@@ -240,6 +256,28 @@ app.post('/api/get-jobs', function(req, res){
 	}
 })
 
+app.post('/api/get-job-status', function(req, res){
+	try {
+		connection.query('SELECT status FROM user NATURAL JOIN js_user_js_profile NATURAL JOIN js_profile_applies_for_job WHERE email = ? AND jobid = ?', [req.body.email, req.body.jobid], function(err, rows, fields){
+			if(rows.length != 0){
+				res.send({
+					error 	: 0,
+					empty 	: 0,
+					status 	: rows[0].status
+				})
+			} else {
+				res.send({
+					error 	: 0,
+					empty 	: 1
+				})
+			}
+		})
+	} catch (e){
+		res.send({
+			error 	: 1
+		})
+	}
+})
 
 app.get('/api/get-all-jobs', function(req, res){
 	try {
@@ -272,20 +310,47 @@ app.post('/api/get-cprofiles', function(req, res){
 	}
 })
 
+app.post('/api/get-applicants', function(req, res){
+	try {
+		connection.query('SELECT jsprofileid, name FROM js_profile_applies_for_job NATURAL JOIN js_user_js_profile WHERE jobid = ? AND status = 0', req.body.jobid, function(err, rows, fields){
+			res.send({
+				error 		: 0,
+				applicants 	: rows
+			})
+		})
+	} catch (e){
+		res.send({
+			error : 1,
+		})
+	}
+})
+
 app.post('/api/apply-job', function(req, res){
 	try {
 		connection.query('SELECT jsprofileid FROM user NATURAL JOIN js_user_js_profile WHERE email = ?', req.body.email, function(err, rows, fields){
-			connection.query('SELECT * js_profile_applies_for_job WHERE jsprofileid = ? AND jobid = ?', [rows[0].jsprofileid, req.body.jobid], function(err1, rows1, fields1){
-				if(rows1){
-					connection.query('INSERT INTO js_profile_applies_for_job VALUES (?, ?, DATE(NOW()))', [rows[0].jsprofileid, req.body.jobid], function(err2, rows2, fields2){})
-					res.send({
-						error 	: 0,
-						message : 'Successfully applied for job'
-					})
+			connection.query('SELECT * FROM js_profile_applies_for_job WHERE jsprofileid = ? AND jobid = ?', [rows[0].jsprofileid, req.body.jobid], function(err1, rows1, fields1){
+				if(rows1.length != 0){
+					if(rows1[0].status == 0){
+						res.send({
+							error 	: 0,
+							message : 'Already applied for the job'
+						})
+					} else if(rows1[0].status == 1){
+						res.send({
+							error 	: 0,
+							message : 'Already accepted for the job'
+						})
+					} else {
+						res.send({
+							error 	: 0,
+							message : 'Already rejected for the job'
+						})
+					}
 				} else {
+					connection.query('INSERT INTO js_profile_applies_for_job VALUES (?, ?, DATE(NOW()), 0)', [rows[0].jsprofileid, req.body.jobid], function(err2, rows2, fields2){})
 					res.send({
 						error 	: 0,
-						message : 'Already applied for job'
+						message : 'Successfully applied for the job'
 					})
 				}
 			})
@@ -352,6 +417,49 @@ app.post('/api/signup', function(req, res){
 	})
 })
 
+app.post('/api/get-jsprofile-info', function(req, res){
+	getInfo(req.body.jsprofileid, false, 1, function(approved, err, info, educBG, workBG, interests){
+		if(err){
+			res.send({
+				error	: 1
+			})
+		} else {
+			res.send({
+				error	: 0,
+				jsprofileid 	: info.jsprofileid,
+				name			: info.name,
+				contact			: info.contactno,
+				address			: info.address,
+				work			: workBG,
+				educ			: educBG,
+				interest 		: interests
+			})
+		}
+	})
+})
+
+app.post('/api/accept-jsprofile', function(req, res){
+	try {
+		connection.query('UPDATE js_profile_applies_for_job SET status = ? WHERE jobid = ? AND jsprofileid = ?', [req.body.status, req.body.jobid, req.body.jsprofileid], function(err, rows, fields){
+			if(req.body.status == 1){
+				res.send({
+					error 	: 0,
+					message : 'Successfully accepted applicant'
+				})
+			} else {
+				res.send({
+					error 	: 0,
+					message : 'Successfully rejected applicant'
+				})
+			}
+		})
+	} catch (e){
+		res.send({
+			error 	: 1,
+			message : req.body.status == 1? 'There is an error in accepting the applicant' : 'There is an error in rejecting the applicant'
+		})
+	}
+})
 
 server.listen(3000)
 console.log('Server is running at http://localhost:3000')

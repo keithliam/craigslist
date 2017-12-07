@@ -29,7 +29,7 @@
 					
 					$timeout(function(){
 						if($cookies.get('accountType') == 2 && $cookies.get('isApproved') == 0){
-							Materialize.toast('Your profile will be hidden since it is not yet approved')
+							Materialize.toast('Your profile will be hidden since it is not yet approved', 4000)
 							$scope.errorText = 'Your profile will be hidden since it is not yet approved'
 							$scope.$apply()
 						}
@@ -41,12 +41,8 @@
 							isapproved 	: isApproved
 						})
 						.then(function(res){
-							// console.log(res.data)
 							if(res.data.error != 1){
-								// console.log("res.data.profiles")
-								// console.log(res.data.profiles)
 								$scope.Profiles = res.data.profiles
-								// console.log($scope.Profiles)
 							} else {
 								$scope.Profiles = []
 							}
@@ -59,7 +55,7 @@
 						})
 						.then(function(res){
 							if(res.data.error != 1){
-								Materialize.toast('Profile accepted')
+								Materialize.toast('Profile accepted', 4000)
 								var ctr
 								for(ctr = 0; ctr < $scope.Profiles.length; ctr++){
 									if($scope.Profiles[ctr].cprofileid == id){
@@ -68,7 +64,7 @@
 									}
 								}
 							} else {
-								Materialize.toast('There is an error in accepting the profile')
+								Materialize.toast('There is an error in accepting the profile', 4000)
 							}
 						})
 				}
@@ -78,12 +74,17 @@
 							email 	: $cookies.get('email')
 						})
 						.then(function(res){
-							// console.log(res.data)
 							if(res.data.error != 1){
-								// console.log("res.data.profiles")
-								// console.log(res.data.profiles)
 								$scope.Jobs = res.data.jobs
-								// console.log($scope.Profiles)
+								$scope.Jobs.forEach(function(job, index){
+									$http
+										.post('http://localhost:3000/api/get-applicants', {
+											jobid 	: job.jobid
+										})
+										.then(function(response){
+											job['applicants'] = response.data.applicants
+										})
+								})
 							} else {
 								$scope.Jobs = []
 							}
@@ -93,12 +94,22 @@
 					$http
 						.get('http://localhost:3000/api/get-all-jobs')
 						.then(function(res){
-							// console.log(res.data)
 							if(res.data.error != 1){
-								// console.log("res.data.profiles")
-								// console.log(res.data.profiles)
 								$scope.Jobs = res.data.jobs
-								// console.log($scope.Profiles)
+								$scope.Jobs.forEach(function(job, index){
+									$http
+										.post('http://localhost:3000/api/get-job-status', {
+											email 	: $cookies.get('email'),
+											jobid 	: job.jobid
+										})
+										.then(function(res){
+											if(res.data.empty == 1){
+												job['status'] = -1
+											} else {
+												job['status'] = res.data.status
+											}
+										})
+								})
 							} else {
 								$scope.Jobs = []
 							}
@@ -122,8 +133,6 @@
 									$scope.Works = res.data.work 
 									$scope.Interests = res.data.interest
 									$scope.loadProfiles(1)
-									// console.log("-------> ")
-									// console.log($scope.Profiles)
 								}
 								$scope.loadAllJobs()
 							} else if($scope.accountType == 2){
@@ -217,7 +226,6 @@
 				}
 				$scope.submitProfile = function(){
 					if($scope.accountType == 1){
-						console.log($scope.Name)
 						$http
 							.post('http://localhost:3000/api/edit-js', {
 								email		: $cookies.get('email'),
@@ -295,6 +303,7 @@
 										$scope.errorText1 = ''
 										$scope.Tags = []
 									})
+									$scope.getInfo()
 							} else {
 								$scope.errorText1 = 'Please enter a whole number'
 								$timeout(function(){
@@ -321,11 +330,45 @@
 						})
 						.then(function(res){
 							Materialize.toast(res.data.message, 4000)
+							$scope.getInfo()
 						})
 				}
 				// $scope.Jobs = [{position: 'Company Photographer', description: 'We need a photographer to capture our company\'s projects and activities', salary: 400, name: 'The Boring Company'}]
 				// $scope.Profiles = [{name:'The Boring Company', address:'Bonifacio Global City', contactno:'32523', datecreated: '214241', isapproved: 1}]
 				$scope.errorText = ''
+				$scope.viewProfile = function(jsprofileid, jobid){
+					$http
+						.post('http://localhost:3000/api/get-jsprofile-info', {
+							jsprofileid : jsprofileid
+						})
+						.then(function(res){
+							$scope.profileId = res.data.jsprofileid
+							$scope.profileName = res.data.name
+							$scope.profileAddress = res.data.address
+							$scope.profileContact = res.data.contact
+							$scope.profileEduc = res.data.educ
+							$scope.profileWork = res.data.work
+							$scope.profileInterests = res.data.interest
+							$scope.jobId = jobid
+							$('#viewProfileModal').modal('open')
+						})
+				}
+				$scope.closeModal = function(){
+					$('#viewProfileModal').modal('close')
+				}
+				$scope.accRejProfile = function(status, jsprofileid){
+					$http
+						.post('http://localhost:3000/api/accept-jsprofile', {
+							jobid 			: $scope.jobId,
+							jsprofileid 	: jsprofileid,
+							status 			: status
+						})
+						.then(function(res){
+							$('#viewProfileModal').modal('close')
+							Materialize.toast(res.data.message, 4000)
+							$scope.getInfo()
+						})
+				}
 			}])
 		</script>
 	</head>
@@ -511,7 +554,7 @@
 					</div>
 	        	</div>
 
-		      	<div class="row" ng-show="showJobs">
+		      	<div class="row" ng-show="accountType == 2">
 		        	<div class="col s10 l6 offset-s1 offset-l3">
 						<div class="card">
 							<div class="card-content">
@@ -572,13 +615,14 @@
 						</div>
 		        	</div>
 		      	</div>
-		      	<!-- <div  -->
 		      	<div ng-show="showJobs">
-			      	<br/>
-			      	<br/>
 			      	<div class="row">
-			      		<h4 class="center">{{ accountType == 1? 'Jobs' : 'Your Job Posts' }}</h4>
-			      	</div>
+				      	<div class="col s12">
+					      	<br>
+					      	<br>
+				      		<h4 class="center">{{ accountType == 1? 'Jobs' : 'Your Job Posts' }}</h4>
+				      	</div>
+				    </div>
 			      	<br/>
 			      	<div class="row">
 			      		<div class="col s10 l6 offset-s1 offset-l3" ng-show="Jobs.length == 0">
@@ -610,21 +654,23 @@
 										<br>
 										<p class="light col s10 offset-s1"><i class="material-icons left">payment</i>${{ job.salary }}</p>
 									</div>
-									<!-- <div class="row center marginify2">
-										<div class="row center">
-											<div class="chip" ng-repeat="tag in job.tags">
-												{{ tag.searchtag }}
-											</div>
+									<div class="center" ng-show="job.status != -1 && accountType == 1">
+										<span class="card-title applicants">Application Status: {{ job.status == 0? "Pending" : job.status == 1? "Accepted" : "Rejected" }}</span>
+									</div>
+									<span class="row center card-title applicants" ng-show="job.applicants.length != 0 && accountType == 2">Applicants</span>
+									<div class="center">
+										<div ng-repeat="applicant in job.applicants">
+											<a class="purple-text text-darken-3" ng-click="viewProfile(applicant.jsprofileid, job.jobid)" href="">{{ applicant.name }}</a>
 										</div>
-									</div> -->
+									</div>
 									<div class="row">
 										<br>
-										<div class="light center">Posted by <a class="card-link purple-text text-darken-3" href="#">{{ job.name }}</a></div>
+										<div class="light center">Posted by <a class="card-link purple-text text-darken-3" href="">{{ job.name }}</a></div>
 									</div>
 								</div>
 
 								<div ng-show="accountType == 1" class="card-action">
-									<a href="#" class="acc-rej-btn purple-text text-darken-3" ng-click="applyJob(job.jobid)">Apply</a>
+									<a class="acc-rej-btn purple-text text-darken-3" ng-click="applyJob(job.jobid)" href="">Apply</a>
 								</div>
 							</div>
 			        	</div>
@@ -677,6 +723,62 @@
 			        </div>
 			    </div>
 	      	</div>
+		</div>
+		<div id="viewProfileModal" class="modal modal-fixed-footer">
+			<div class="modal-content">
+				<br>
+				<div class="row">
+		      		<h4 class="center">Profile Information</h4>
+		      	</div>
+				<div class="row">
+			      	<div class="col s10 l8 offset-s1 offset-l2">
+						<div class="card purple lighten-3 white-text">
+							<div class="card-content">
+								<br/>
+								<span class="center card-title">{{ profileName }}</span>
+								<br/>
+								<div class="row">
+									<p class="light col s10 offset-s1"><i class="material-icons left">location_on</i>{{ profileAddress }}</p>
+								</div>
+								<div class="row">
+									<p class="light col s10 offset-s1"><i class="material-icons left">phone</i>{{ profileContact }}</p>
+								</div>
+								<div ng-show="profileEduc.length != 0" class="row center marginify2">
+									<span class="center">Educational Background</span>
+									<div class="row center">
+										<div class="chip" ng-repeat="educ in profileEduc">
+											{{ educ.educbackground }}
+										</div>
+									</div>
+								</div>
+								<div ng-show="profileWork.length != 0" class="row center marginify2">
+									<span class="center">Work Background</span>
+									<div class="row center">
+										<div class="chip" ng-repeat="work in profileWork">
+											{{ work.workbackground }}
+										</div>
+									</div>
+								</div>
+								<div ng-show="profileInterests.length != 0" class="row center marginify2">
+									<span class="center">Interests</span>
+									<div class="row center">
+										<div class="chip" ng-repeat="interest in profileInterests">
+											{{ interest.interest }}
+										</div>
+									</div>
+								</div>
+							</div>
+							<div class="card-action">
+								<a href="#" class="acc-rej-btn purple-text text-darken-3" ng-click="accRejProfile(1, profileId)">Accept</a>
+								<a href="#" class="acc-rej-btn purple-text text-darken-3" ng-click="accRejProfile(2, profileId)">Decline</a>
+							</div>
+						</div>
+		        	</div>
+			    </div>
+			</div>
+			<div class="modal-footer">
+				<a class="modal-action waves-effect waves-red btn-flat" ng-click="closeModal()">Exit</a>
+			</div>
 		</div>
 	</body>
 </html>

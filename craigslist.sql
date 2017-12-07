@@ -71,7 +71,8 @@ educbackground varchar(100)
 CREATE TABLE js_profile_applies_for_job(
 jsprofileid int(6) zerofill not null,
 jobid int(11) zerofill not null,
-dateapplied date not null
+dateapplied date not null,
+status int(1) not null
 );
 CREATE TABLE job(
 jobid int(11) zerofill auto_increment,
