@@ -275,12 +275,21 @@ app.post('/api/get-cprofiles', function(req, res){
 app.post('/api/apply-job', function(req, res){
 	try {
 		connection.query('SELECT jsprofileid FROM user NATURAL JOIN js_user_js_profile WHERE email = ?', req.body.email, function(err, rows, fields){
-			connection.query('INSERT INTO js_profile_applies_for_job VALUES (?, ?, DATE(NOW()))', [rows[0].jsprofileid, req.body.jobid], function(err1, rows1, fields1){})
-			console.log(rows[0].jsprofileid + " - " + req.body.jobid)
-			res.send({
-				error 	: 0,
-				message : 'Successfully applied for job'
+			connection.query('SELECT * js_profile_applies_for_job WHERE jsprofileid = ? AND jobid = ?', [rows[0].jsprofileid, req.body.jobid], function(err1, rows1, fields1){
+				if(rows1){
+					connection.query('INSERT INTO js_profile_applies_for_job VALUES (?, ?, DATE(NOW()))', [rows[0].jsprofileid, req.body.jobid], function(err2, rows2, fields2){})
+					res.send({
+						error 	: 0,
+						message : 'Successfully applied for job'
+					})
+				} else {
+					res.send({
+						error 	: 0,
+						message : 'Already applied for job'
+					})
+				}
 			})
+			
 		})
 	} catch (e){
 		res.send({
